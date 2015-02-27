@@ -40,3 +40,16 @@ func TORUS2(p int) func(i, j int) bool {
 func TREE(i, j int) bool {
 	return i == Ceil((j - 1) / 2) || j == Ceil((i - 1) / 2)
 }
+
+type PSim struct {
+	p int
+	topology func(i, j int) bool
+}
+
+func (PSim psim) send(j int) {
+
+}
+
+
+
+

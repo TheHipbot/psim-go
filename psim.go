@@ -2,12 +2,13 @@
 Package psimgo is a go implementation of the library PSim for python.
 PSim is used to simulate parallel processing on a single machine.
 
-
  */
 package psimgo
 
 import (
 	"math"
+	"sync"
+	"fmt"
 )
 
 // ====== Helper Functions ======
@@ -20,7 +21,7 @@ func xor(i, j, v int) bool {
 }
 
 func divmod(i, j int) (d, r int) {
-	result := int(math.Floor(i/j))
+	result := int(math.Floor(float64(i/j)))
 	remainder := i - (result*j)
 	return result, remainder
 }
@@ -82,94 +83,186 @@ func TREE(i, j int) bool {
 // ====== PSim type and Functions ======
 
 type PSim struct {
-	p int
-	topology func(i, j int) bool
+	P int
+	Topology func(i, j int) (bool)
 	initialized bool
-	pipes [][]chan interface {}
+	Pipes [][]chan interface {}
+	print_streams []chan string
 }
 
-func (psim PSim) run(f func(rank int, comm PSim)) {
+func (psim PSim) Pprint(rank int, message string) {
+	psim.print_streams[rank] <- message
+}
+
+func (psim PSim) Run(f func(rank int, comm PSim)) {
+	var wg sync.WaitGroup
+
+	// init arrays
+	psim.Pipes = make([][]chan interface {}, psim.P)
+	psim.print_streams = make([]chan string, psim.P)
+
 	// default p num procs
-	if psim.p == 0 {
-		psim.p = 1
+	if psim.P == 0 {
+		psim.P = 1
 	}
 
 	// default topology
-	if psim.topology == nil {
-		psim.toplogy = SWITCH
+	if psim.Topology == nil {
+		psim.Topology = SWITCH
 	}
 
 	// initialize channels
-	for i := range psim.p {
-		for j := range psim.p {
-			psim.pipes[i][j] = make(chan interface {})
+	for i := 0; i < psim.P; i++ {
+		psim.Pipes[i] = make([]chan interface {}, psim.P)
+		for j := 0; j < psim.P; j++ {
+			psim.Pipes[i][j] = make(chan interface {})
 		}
 	}
 
+	wg.Add(psim.P)
+
 	// start go threads
-	for r := range psim.p {
-		go f(r, psim)
+	for r := 0; r < psim.P; r++ {
+		psim.print_streams[r] = make(chan string)
+		go func (r int) {
+			defer wg.Done()
+			f(r, psim)
+		}(r)
+	}
+
+	for _,p := range psim.print_streams {
+		select {
+		case msg := <- p:
+			fmt.Printf(msg)
+		default:
+		}
 	}
 
 	// psim object has been initialized
 	psim.initialized = true
+
+	go func() {
+		for _,p := range psim.print_streams {
+			close(p)
+		}
+	}()
+	wg.Wait()
 }
 
-func (psim *PSim) send(i, j int, data interface {}) {
+func (psim PSim) Send(i, j int, data interface {}) {
 	// if i or j less than 0 or greater then nprocs error
 	// if i -> j communication unavailable, error
-	if i < 0 || i > psim.p || j < 0 || j > psim.p || !psim.topology(i, j) {
-		// TODO error
+	if i < 0 || i > psim.P-1 || j < 0 || j > psim.P-1 || !psim.Topology(i, j) {
+		fmt.Printf("Send ERR:\nOut of range, i: %d; j: %d\n", i, j);
+	} else {
+		// send data
+		psim.Pipes[i][j] <-data
 	}
-
-	// send data
-	psim.pipes[i][j] <-data
 }
 
-func (psim *PSim) recv(i, j int) interface {} {
+func (psim PSim) Recv(i, j int) interface {} {
 	// if i or j less than 0 or greater then nprocs error
 	// if i -> j communication unavailable, error
-	if i < 0 || i > psim.p || j < 0 || j > psim.p || !psim.topology(i, j) {
-		// TODO error
+	if i < 0 || i > psim.P-1 || j < 0 || j > psim.P-1 || !psim.Topology(i, j) {
+		fmt.Printf("Recv ERR:\nOut of range, i: %d; j: %d\n", i, j);
+	} else {
+		// recv data
+		return <-psim.Pipes[j][i]
 	}
-
-	// recv data
-	return <-psim.pipes[j][i]
+	return nil
 }
 
-func (psim *PSim) one2all_broadcast(rank, source int, data interface {}) interface {} {
+func (psim PSim) One2all_broadcast(rank, source int, data interface {}) interface {} {
 	if rank == source {
-		for i := 0; i < psim.p; i++ {
+		for i := 0; i < psim.P; i++ {
 			if i != source {
-				psim.send(source, i, data)
+				psim.Send(source, i, data)
 			}
 		}
 		return data
 	} else {
-		return psim.recv(rank, source)
+		return psim.Recv(rank, source)
 	}
 }
 
-func (psim *PSim) all2all_broadcast(rank, source int, data interface {}) interface {} {
-	return 0
+func (psim PSim) All2all_broadcast(rank int, data interface {}) []interface {} {
+	vector := psim.All2one_collect(rank, 0, data)
+	v := psim.One2all_broadcast(rank, 0, vector)
+	switch t:= v.(type){
+	case []interface {}:
+		return t
+	case interface {}:
+		return []interface {} {t}
+	default:
+		// TODO error
+	}
+	return nil
 }
 
-func (psim *PSim) one2all_scatter(rank, source int, data []interface {}) []interface {} {
+func (psim PSim) One2all_scatter(rank, source int, data []interface {}) []interface {} {
 	if rank == source {
-		h, reminder := divmod(len(data), psim.p)
+		h, reminder := divmod(len(data), psim.P)
 
 		if reminder > 0 {
 			h += 1
 		}
 
-		for i := 1; i < psim.p; i++ {
-			psim.send(rank, i, data[i*h:i*h+h])
+		for i := 1; i < psim.P; i++ {
+			psim.Send(rank, i, data[i*h:i*h+h])
 		}
 		return data[0:h]
 	} else {
-		return psim.recv(rank, source)
+		v := psim.Recv(rank, source)
+		if vector, ok := v.([]interface {}); ok {
+			return vector	
+		} else {
+			return nil
+		}
 	}
 }
 
+func (psim PSim) All2one_collect(rank, dest int, data interface {}) []interface {} {
+	var result []interface {}
+	
+	if rank == dest {
+		for i := 0; i < psim.P; i++ {
+			if i == rank {
+				result = append(result, data)
+			} else {
+				result = append(result, psim.Recv(rank, dest))
+			}
+		}
+	} else {
+		psim.Send(rank, dest, data)
+	}
+	
+	return result
+}
 
+func (psim PSim) All2one_reduce(
+	rank, dest int,
+	data interface {},
+	op func(a, b interface {}) interface {}) interface {} {
+	if rank == dest {
+		result := data
+		for i := 1; i< psim.P; i++ {
+			if i != rank {
+				result = op(result, psim.Recv(dest, i))
+			}
+		}
+		return result
+	} else {
+		psim.Send(rank, dest, data)
+		return 0
+	}
+}
 
+func (psim PSim) All2all_reduce(rank int, data interface {}, op func(a, b interface {}) interface {}) interface {} {
+	result := psim.All2one_reduce(rank, 0, data, op)
+	result = psim.One2all_broadcast(rank, 0, result)
+	return result
+}
+
+func (psim PSim) Barrier() {
+	psim.All2all_broadcast(0, 0)
+}

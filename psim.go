@@ -87,11 +87,6 @@ type PSim struct {
 	Topology func(i, j int) (bool)
 	initialized bool
 	Pipes [][]chan interface {}
-	print_streams []chan string
-}
-
-func (psim PSim) Pprint(rank int, message string) {
-	psim.print_streams[rank] <- message
 }
 
 func (psim PSim) Run(f func(rank int, comm PSim)) {
@@ -99,7 +94,6 @@ func (psim PSim) Run(f func(rank int, comm PSim)) {
 
 	// init arrays
 	psim.Pipes = make([][]chan interface {}, psim.P)
-	psim.print_streams = make([]chan string, psim.P)
 
 	// default p num procs
 	if psim.P == 0 {
@@ -123,51 +117,37 @@ func (psim PSim) Run(f func(rank int, comm PSim)) {
 
 	// start go threads
 	for r := 0; r < psim.P; r++ {
-		psim.print_streams[r] = make(chan string)
 		go func (r int) {
 			defer wg.Done()
 			f(r, psim)
 		}(r)
 	}
 
-	for _,p := range psim.print_streams {
-		select {
-		case msg := <- p:
-			fmt.Printf(msg)
-		default:
-		}
-	}
-
 	// psim object has been initialized
 	psim.initialized = true
 
-	go func() {
-		for _,p := range psim.print_streams {
-			close(p)
-		}
-	}()
 	wg.Wait()
 }
 
-func (psim PSim) Send(i, j int, data interface {}) {
+func (psim PSim) Send(source, dest int, data interface {}) {
 	// if i or j less than 0 or greater then nprocs error
 	// if i -> j communication unavailable, error
-	if i < 0 || i > psim.P-1 || j < 0 || j > psim.P-1 || !psim.Topology(i, j) {
-		fmt.Printf("Send ERR:\nOut of range, i: %d; j: %d\n", i, j);
+	if source < 0 || source > psim.P-1 || dest < 0 || dest > psim.P-1 || !psim.Topology(source, dest) {
+		fmt.Printf("Send ERR:\nOut of range, i: %d; j: %d\n", source, dest);
 	} else {
 		// send data
-		psim.Pipes[i][j] <-data
+		psim.Pipes[source][dest] <-data
 	}
 }
 
-func (psim PSim) Recv(i, j int) interface {} {
+func (psim PSim) Recv(rank, source int) interface {} {
 	// if i or j less than 0 or greater then nprocs error
 	// if i -> j communication unavailable, error
-	if i < 0 || i > psim.P-1 || j < 0 || j > psim.P-1 || !psim.Topology(i, j) {
-		fmt.Printf("Recv ERR:\nOut of range, i: %d; j: %d\n", i, j);
+	if rank < 0 || rank > psim.P-1 || source < 0 || source > psim.P-1 || !psim.Topology(rank, source) {
+		fmt.Printf("Recv ERR:\nOut of range, i: %d; j: %d\n", rank, source);
 	} else {
 		// recv data
-		return <-psim.Pipes[j][i]
+		return <-psim.Pipes[source][rank]
 	}
 	return nil
 }
@@ -229,7 +209,7 @@ func (psim PSim) All2one_collect(rank, dest int, data interface {}) []interface 
 			if i == rank {
 				result = append(result, data)
 			} else {
-				result = append(result, psim.Recv(rank, dest))
+				result = append(result, psim.Recv(rank, i))
 			}
 		}
 	} else {
@@ -247,7 +227,7 @@ func (psim PSim) All2one_reduce(
 		result := data
 		for i := 1; i< psim.P; i++ {
 			if i != rank {
-				result = op(result, psim.Recv(dest, i))
+				result = op(result, psim.Recv(rank, i))
 			}
 		}
 		return result
@@ -263,6 +243,6 @@ func (psim PSim) All2all_reduce(rank int, data interface {}, op func(a, b interf
 	return result
 }
 
-func (psim PSim) Barrier() {
-	psim.All2all_broadcast(0, 0)
+func (psim PSim) Barrier(rank int) {
+	psim.All2all_broadcast(rank, 0)
 }

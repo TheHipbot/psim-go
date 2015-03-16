@@ -37,11 +37,11 @@ func acceptanceTest(t *testing.T) {
 		b := comm.all2all_reduce(rank, 0, op);
 
 		if f!=10 || f!=b {
-			comm.p_print(rank, fmt.Sprintf("from process %d\n", rank))
+			fmt.Printf(rank, fmt.Sprintf("from process %d\n", rank))
 		}
 
 		if rank==0 {
-			comm.p_print(rank, "test passed\n")
+			fmt.Printf(rank, "test passed\n")
 		}
 	}
 	comm.run(runTest)

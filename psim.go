@@ -193,7 +193,7 @@ func ToFloat64Array(a []interface {}) []float64 {
 	return res
 }
 
-func ToToFloatArray(a []interface {}) []float64 {
+func ToFloatArray(a []interface {}) []float64 {
 	return ToFloat64Array(a)
 }
 
@@ -302,9 +302,34 @@ func (psim PSim) RecvFloat32(rank, source int) float32 {
 	return ToFloat32(psim.Recv(rank, source))
 }
 
+// a2aBcast
+func (psim PSim) All2all_broadcastInt(rank int, data int) []int {
+	return ToIntArray(psim.All2all_broadcast(rank, data))
+}
 
+func (psim PSim) All2all_broadcastFloat(rank int, data float64) []float64 {
+	return ToFloat64Array(psim.All2all_broadcast(rank, data))
+}
 
+// scatter
+func (psim PSim) One2all_scatterInt(rank, source int, data []interface {}) []int {
+	return ToIntArray(psim.One2all_scatter(rank, source, data))
+}
 
+func (psim PSim) One2all_scatterFloat(rank, source int, data []interface {}) []float64 {
+	return ToFloatArray(psim.One2all_scatter(rank, source, data))
+}
+
+// collect
+func (psim PSim) All2one_collectInt(rank, dest int, data int) []int {
+	return ToIntArray(psim.All2one_collect(rank, dest, data))
+}
+
+func (psim PSim) All2one_collectFloat(rank, dest int, data float64) []float64 {
+	return ToFloatArray(psim.All2one_collect(rank, dest, data))
+}
+
+// Message Passing functions
 
 func (psim PSim) Send(source, dest int, data interface {}) {
 	// if i or j less than 0 or greater then nprocs error

@@ -129,6 +129,183 @@ func (psim PSim) Run(f func(rank int, comm PSim)) {
 	wg.Wait()
 }
 
+// ======= Reflective Decorators =======
+
+// Casts --
+// 	using go's type assertions to make
+//  casting functions as to keep the channels
+//  and hence all of the message passing generic
+//  conversions used on Recv
+
+func ToInt(a interface {}) int{
+	if v, ok := a.(int); ok {
+		return v
+	}
+	
+	// TODO Error
+	fmt.Printf("Cannot cast to int")
+	return 0
+}
+
+func ToFloat64(a interface {}) float64 {
+	if v, ok := a.(float64); ok {
+		return v
+	}
+
+	// TODO Error
+	fmt.Printf("Cannot cast to int")
+	return 0
+}
+
+func ToFloat(a interface {}) float64 {
+	return ToFloat64(a)
+}
+
+func ToFloat32(a interface {}) float32 {
+	if v, ok := a.(float32); ok {
+		return v
+	}
+
+	// TODO Error
+	fmt.Printf("Cannot cast to int")
+	return 0
+}
+
+func ToIntArray(a []interface {}) []int {
+	l := len(a)
+	res := make([]int, l, l)
+
+	for i := range a {
+		res[i] = ToInt(a[i])
+	}
+
+	return res
+}
+
+func ToFloat64Array(a []interface {}) []float64 {
+	l := len(a)
+	res := make([]float64, l, l)
+
+	for i := range a {
+		res[i] = ToFloat64(a[i])
+	}
+
+	return res
+}
+
+func ToToFloatArray(a []interface {}) []float64 {
+	return ToFloat64Array(a)
+}
+
+func ToFloat32Array(a []interface {}) []float32 {
+	l := len(a)
+	res := make([]float32, l, l)
+
+	for i := range a {
+		res[i] = ToFloat32(a[i])
+	}
+
+	return res
+}
+
+// Reduce Operations --
+// 	for the reduce operations, an associative
+//  binary function is necessary. Unfortunately
+//  type checking must be made so here are some basic
+//  operations for users
+
+func IntSum(a, b interface {}) int {
+	if x, ok := a.(int); ok {
+		if y, ok := b.(int); ok {
+			return x + y
+		}
+	}
+
+	fmt.Printf("Illegal add")
+	return 0
+}
+
+func IntProd(a, b interface {}) int {
+	if x, ok := a.(int); ok {
+		if y, ok := b.(int); ok {
+			return x * y
+		}
+	}
+
+	fmt.Printf("Illegal prod")
+	return 0
+}
+
+func FloatSum(a, b interface {}) float64 {
+	if x, ok := a.(float64); ok {
+		if y, ok := b.(float64); ok {
+			return x + y
+		}
+	}
+
+	fmt.Printf("Illegal add")
+	return 0
+}
+
+func FloatProd(a, b interface {}) float64 {
+	if x, ok := a.(float64); ok {
+		if y, ok := b.(float64); ok {
+			return x * y
+		}
+	}
+
+	fmt.Printf("Illegal prod")
+	return 0
+}
+
+func PMax(a, b interface {}) float64 {
+	if x, ok := a.(float64); ok {
+		if y, ok := b.(float64); ok {
+			return math.Max(x, y)
+		}
+	}
+
+	fmt.Printf("Illegal prod")
+	return 0
+}
+
+func PMin(a, b interface {}) float64 {
+	if x, ok := a.(float64); ok {
+		if y, ok := b.(float64); ok {
+			return math.Min(x, y)
+		}
+	}
+
+	fmt.Printf("Illegal prod")
+	return 0
+}
+
+// Decorators --
+// 	using the functions created above, we make
+//  decorator functions for Recv to return the 
+//  expected type directly rather than cast
+
+// Recv
+func (psim PSim) RecvInt(rank, source int) int {
+	return ToInt(psim.Recv(rank, source))
+}
+
+func (psim PSim) RecvFloat64(rank, source int) float64 {
+	return ToFloat64(psim.Recv(rank, source))
+}
+
+func (psim PSim) RecvFloat(rank, source int) float64 {
+	return ToFloat64(psim.Recv(rank, source))
+}
+
+func (psim PSim) RecvFloat32(rank, source int) float32 {
+	return ToFloat32(psim.Recv(rank, source))
+}
+
+
+
+
+
 func (psim PSim) Send(source, dest int, data interface {}) {
 	// if i or j less than 0 or greater then nprocs error
 	// if i -> j communication unavailable, error

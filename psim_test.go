@@ -22,7 +22,9 @@ func TestMessagePassing(t *testing.T) {
 		} else if rank == 3 {
 			c := comm.RecvInt(rank, 2)
 			d := c + 1
-			fmt.Printf("%d\n", d)
+			if d != 12 {
+				t.Errorf("Wrong number received or number not received as int")
+			}
 		}
 
 		var f int
@@ -142,8 +144,6 @@ func merge(A []float64, p, q, r int) {
 			break
 		}
 	}
-
-	//	fmt.Printf("%v\n", B)
 
 	for k := range B {
 		A[p+k] = B[k]

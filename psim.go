@@ -9,6 +9,7 @@ import (
 	"math"
 	"sync"
 	"fmt"
+	"reflect"
 )
 
 // ====== Helper Functions ======
@@ -141,7 +142,7 @@ func ToInt(a interface {}) int{
 	if v, ok := a.(int); ok {
 		return v
 	}
-	
+
 	// TODO Error
 	fmt.Printf("Cannot cast to int")
 	return 0
@@ -169,6 +170,22 @@ func ToFloat32(a interface {}) float32 {
 	// TODO Error
 	fmt.Printf("Cannot cast to int")
 	return 0
+}
+
+
+func InterfaceToSlice(slice interface{}) []interface{} {
+	s := reflect.ValueOf(slice)
+	if s.Kind() != reflect.Slice {
+		panic("InterfaceSlice() given a non-slice type")
+	}
+
+	ret := make([]interface{}, s.Len())
+
+	for i:=0; i<s.Len(); i++ {
+		ret[i] = s.Index(i).Interface()
+	}
+
+	return ret
 }
 
 func ToIntArray(a []interface {}) []int {
@@ -282,7 +299,7 @@ func PMin(a, b interface {}) float64 {
 
 // Decorators --
 // 	using the functions created above, we make
-//  decorator functions for Recv to return the 
+//  decorator functions for Recv to return the
 //  expected type directly rather than cast
 
 // Recv
@@ -302,6 +319,22 @@ func (psim PSim) RecvFloat32(rank, source int) float32 {
 	return ToFloat32(psim.Recv(rank, source))
 }
 
+func (psim PSim) RecvIntArray(rank, source int) []int {
+	return ToIntArray(InterfaceToSlice(psim.Recv(rank, source)))
+}
+
+func (psim PSim) RecvFloat64Array(rank, source int) []float64 {
+	return ToFloat64Array(InterfaceToSlice(psim.Recv(rank, source)))
+}
+
+func (psim PSim) RecvFloatArray(rank, source int) []float64 {
+	return ToFloatArray(InterfaceToSlice(psim.Recv(rank, source)))
+}
+
+func (psim PSim) RecvFloat32Array(rank, source int) []float32 {
+	return ToFloat32Array(InterfaceToSlice(psim.Recv(rank, source)))
+}
+
 // a2aBcast
 func (psim PSim) All2all_broadcastInt(rank int, data int) []int {
 	return ToIntArray(psim.All2all_broadcast(rank, data))
@@ -311,7 +344,7 @@ func (psim PSim) All2all_broadcastFloat(rank int, data float64) []float64 {
 	return ToFloat64Array(psim.All2all_broadcast(rank, data))
 }
 
-// scatter
+// scattera
 func (psim PSim) One2all_scatterInt(rank, source int, data []interface {}) []int {
 	return ToIntArray(psim.One2all_scatter(rank, source, data))
 }

@@ -93,13 +93,13 @@ type PSim struct {
 func (psim PSim) Run(f func(rank int, comm PSim)) {
 	var wg sync.WaitGroup
 
-	// init arrays
-	psim.Pipes = make([][]chan interface {}, psim.P)
-
 	// default p num procs
 	if psim.P == 0 {
 		psim.P = 1
 	}
+
+	// init arrays
+	psim.Pipes = make([][]chan interface {}, psim.P)
 
 	// default topology
 	if psim.Topology == nil {
@@ -231,7 +231,7 @@ func ToFloat32Array(a []interface {}) []float32 {
 //  type checking must be made so here are some basic
 //  operations for users
 
-func IntSum(a, b interface {}) int {
+func IntSum(a, b interface {}) interface {} {
 	if x, ok := a.(int); ok {
 		if y, ok := b.(int); ok {
 			return x + y
@@ -242,7 +242,7 @@ func IntSum(a, b interface {}) int {
 	return 0
 }
 
-func IntProd(a, b interface {}) int {
+func IntProd(a, b interface {}) interface {} {
 	if x, ok := a.(int); ok {
 		if y, ok := b.(int); ok {
 			return x * y
@@ -253,7 +253,7 @@ func IntProd(a, b interface {}) int {
 	return 0
 }
 
-func FloatSum(a, b interface {}) float64 {
+func FloatSum(a, b interface {}) interface {} {
 	if x, ok := a.(float64); ok {
 		if y, ok := b.(float64); ok {
 			return x + y
@@ -264,7 +264,7 @@ func FloatSum(a, b interface {}) float64 {
 	return 0
 }
 
-func FloatProd(a, b interface {}) float64 {
+func FloatProd(a, b interface {}) interface {} {
 	if x, ok := a.(float64); ok {
 		if y, ok := b.(float64); ok {
 			return x * y
@@ -275,7 +275,7 @@ func FloatProd(a, b interface {}) float64 {
 	return 0
 }
 
-func PMax(a, b interface {}) float64 {
+func PMax(a, b interface {}) interface {} {
 	if x, ok := a.(float64); ok {
 		if y, ok := b.(float64); ok {
 			return math.Max(x, y)
@@ -286,7 +286,7 @@ func PMax(a, b interface {}) float64 {
 	return 0
 }
 
-func PMin(a, b interface {}) float64 {
+func PMin(a, b interface {}) interface {} {
 	if x, ok := a.(float64); ok {
 		if y, ok := b.(float64); ok {
 			return math.Min(x, y)
@@ -416,9 +416,9 @@ func (psim PSim) All2all_broadcast(rank int, data interface {}) []interface {} {
 
 func (psim PSim) One2all_scatter(rank, source int, data []interface {}) []interface {} {
 	if rank == source {
-		h, reminder := divmod(len(data), psim.P)
+		h, remainder := divmod(len(data), psim.P)
 
-		if reminder > 0 {
+		if remainder > 0 {
 			h += 1
 		}
 

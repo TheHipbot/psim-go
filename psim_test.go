@@ -38,16 +38,7 @@ func TestMessagePassing(t *testing.T) {
 
 		comm.Barrier(rank)
 
-		op := func(a, b interface {}) interface {} {
-			if x, ok := a.(int); ok {
-				if y, ok := b.(int); ok {
-					return x + y
-				}
-			}
-			return 0
-		}
-
-		b := comm.All2all_reduce(rank, rank, op)
+		b := comm.All2all_reduce(rank, rank, IntSum)
 
 		fmt.Printf("%d\n", b)
 

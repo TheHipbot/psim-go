@@ -2,14 +2,14 @@
 Package psimgo is a go implementation of the library PSim for python.
 PSim is used to simulate parallel processing on a single machine.
 
- */
+*/
 package psimgo
 
 import (
-	"math"
-	"sync"
 	"fmt"
+	"math"
 	"reflect"
+	"sync"
 )
 
 // ====== Helper Functions ======
@@ -22,8 +22,8 @@ func xor(i, j, v int) bool {
 }
 
 func divmod(i, j int) (d, r int) {
-	result := int(math.Floor(float64(i/j)))
-	remainder := i - (result*j)
+	result := int(math.Floor(float64(i / j)))
+	remainder := i - (result * j)
 	return result, remainder
 }
 
@@ -41,7 +41,7 @@ func BUS(i, j int) bool {
 
 // Switch topology, all nodes can communicate
 // with all others. Always true
-func SWITCH(i,j int) bool {
+func SWITCH(i, j int) bool {
 	return true
 }
 
@@ -49,7 +49,7 @@ func SWITCH(i,j int) bool {
 // if i and j are neighbors, communication is available
 func MESH1(p int) func(i, j int) bool {
 	return func(i, j int) bool {
-		return int(math.Abs(float64(i - j))) == 1
+		return int(math.Abs(float64(i-j))) == 1
 	}
 }
 
@@ -58,7 +58,7 @@ func MESH1(p int) func(i, j int) bool {
 // nodes connected
 func TORUS1(p int) func(i, j int) bool {
 	return func(i, j int) bool {
-		return (i - j + p) % p == 1 || (j - i + p) % p == 1
+		return (i-j+p)%p == 1 || (j-i+p)%p == 1
 	}
 }
 
@@ -73,24 +73,24 @@ func MESH2(p int) func(i, j int) bool {
 func TORUS2(p int) func(i, j int) bool {
 	q := int(math.Floor(math.Sqrt(float64(p)) + 0.1))
 	return func(i, j int) bool {
-		return xor(((i%q - j%q + q) %q), ((i/q - j/q + q) %q), 1) || xor(((j%q - i%q + q) %q), ((j/q - i/q + q) %q), 1)
+		return xor(((i%q-j%q+q)%q), ((i/q-j/q+q)%q), 1) || xor(((j%q-i%q+q)%q), ((j/q-i/q+q)%q), 1)
 	}
 }
 
 func TREE(i, j int) bool {
-	return i == int(math.Ceil(float64(j-1) /2.0)) || j == int(math.Ceil(float64(i-1) /2.0))
+	return i == int(math.Ceil(float64(j-1)/2.0)) || j == int(math.Ceil(float64(i-1)/2.0))
 }
 
 // ====== PSim type and Functions ======
 
 type PSim struct {
-	P int
-	Topology func(i, j int) (bool)
+	P           int
+	Topology    func(i, j int) bool
 	initialized bool
-	Pipes [][]chan interface {}
+	Pipes       [][]chan interface{}
 }
 
-func (psim PSim) Run(f func(rank int, comm PSim)) {
+func (psim *PSim) Run(f func(rank int, comm *PSim)) {
 	var wg sync.WaitGroup
 
 	// default p num procs
@@ -99,7 +99,7 @@ func (psim PSim) Run(f func(rank int, comm PSim)) {
 	}
 
 	// init arrays
-	psim.Pipes = make([][]chan interface {}, psim.P)
+	psim.Pipes = make([][]chan interface{}, psim.P)
 
 	// default topology
 	if psim.Topology == nil {
@@ -108,9 +108,9 @@ func (psim PSim) Run(f func(rank int, comm PSim)) {
 
 	// initialize channels
 	for i := 0; i < psim.P; i++ {
-		psim.Pipes[i] = make([]chan interface {}, psim.P)
+		psim.Pipes[i] = make([]chan interface{}, psim.P)
 		for j := 0; j < psim.P; j++ {
-			psim.Pipes[i][j] = make(chan interface {})
+			psim.Pipes[i][j] = make(chan interface{})
 		}
 	}
 
@@ -118,7 +118,7 @@ func (psim PSim) Run(f func(rank int, comm PSim)) {
 
 	// start go threads
 	for r := 0; r < psim.P; r++ {
-		go func (r int) {
+		go func(r int) {
 			defer wg.Done()
 			f(r, psim)
 		}(r)
@@ -138,7 +138,7 @@ func (psim PSim) Run(f func(rank int, comm PSim)) {
 //  and hence all of the message passing generic
 //  conversions used on Recv
 
-func ToInt(a interface {}) int{
+func ToInt(a interface{}) int {
 	if v, ok := a.(int); ok {
 		return v
 	}
@@ -148,7 +148,7 @@ func ToInt(a interface {}) int{
 	return 0
 }
 
-func ToFloat64(a interface {}) float64 {
+func ToFloat64(a interface{}) float64 {
 	if v, ok := a.(float64); ok {
 		return v
 	}
@@ -158,11 +158,11 @@ func ToFloat64(a interface {}) float64 {
 	return 0
 }
 
-func ToFloat(a interface {}) float64 {
+func ToFloat(a interface{}) float64 {
 	return ToFloat64(a)
 }
 
-func ToFloat32(a interface {}) float32 {
+func ToFloat32(a interface{}) float32 {
 	if v, ok := a.(float32); ok {
 		return v
 	}
@@ -172,7 +172,6 @@ func ToFloat32(a interface {}) float32 {
 	return 0
 }
 
-
 func InterfaceToSlice(slice interface{}) []interface{} {
 	s := reflect.ValueOf(slice)
 	if s.Kind() != reflect.Slice {
@@ -181,14 +180,14 @@ func InterfaceToSlice(slice interface{}) []interface{} {
 
 	ret := make([]interface{}, s.Len())
 
-	for i:=0; i<s.Len(); i++ {
+	for i := 0; i < s.Len(); i++ {
 		ret[i] = s.Index(i).Interface()
 	}
 
 	return ret
 }
 
-func ToIntArray(a []interface {}) []int {
+func ToIntArray(a []interface{}) []int {
 	l := len(a)
 	res := make([]int, l, l)
 
@@ -199,7 +198,7 @@ func ToIntArray(a []interface {}) []int {
 	return res
 }
 
-func ToFloat64Array(a []interface {}) []float64 {
+func ToFloat64Array(a []interface{}) []float64 {
 	l := len(a)
 	res := make([]float64, l, l)
 
@@ -210,11 +209,11 @@ func ToFloat64Array(a []interface {}) []float64 {
 	return res
 }
 
-func ToFloatArray(a []interface {}) []float64 {
+func ToFloatArray(a []interface{}) []float64 {
 	return ToFloat64Array(a)
 }
 
-func ToFloat32Array(a []interface {}) []float32 {
+func ToFloat32Array(a []interface{}) []float32 {
 	l := len(a)
 	res := make([]float32, l, l)
 
@@ -231,7 +230,7 @@ func ToFloat32Array(a []interface {}) []float32 {
 //  type checking must be made so here are some basic
 //  operations for users
 
-func IntSum(a, b interface {}) interface {} {
+func IntSum(a, b interface{}) interface{} {
 	if x, ok := a.(int); ok {
 		if y, ok := b.(int); ok {
 			return x + y
@@ -242,7 +241,7 @@ func IntSum(a, b interface {}) interface {} {
 	return 0
 }
 
-func IntProd(a, b interface {}) interface {} {
+func IntProd(a, b interface{}) interface{} {
 	if x, ok := a.(int); ok {
 		if y, ok := b.(int); ok {
 			return x * y
@@ -253,7 +252,7 @@ func IntProd(a, b interface {}) interface {} {
 	return 0
 }
 
-func FloatSum(a, b interface {}) interface {} {
+func FloatSum(a, b interface{}) interface{} {
 	if x, ok := a.(float64); ok {
 		if y, ok := b.(float64); ok {
 			return x + y
@@ -264,7 +263,7 @@ func FloatSum(a, b interface {}) interface {} {
 	return 0
 }
 
-func FloatProd(a, b interface {}) interface {} {
+func FloatProd(a, b interface{}) interface{} {
 	if x, ok := a.(float64); ok {
 		if y, ok := b.(float64); ok {
 			return x * y
@@ -275,7 +274,7 @@ func FloatProd(a, b interface {}) interface {} {
 	return 0
 }
 
-func PMax(a, b interface {}) interface {} {
+func PMax(a, b interface{}) interface{} {
 	if x, ok := a.(float64); ok {
 		if y, ok := b.(float64); ok {
 			return math.Max(x, y)
@@ -286,7 +285,7 @@ func PMax(a, b interface {}) interface {} {
 	return 0
 }
 
-func PMin(a, b interface {}) interface {} {
+func PMin(a, b interface{}) interface{} {
 	if x, ok := a.(float64); ok {
 		if y, ok := b.(float64); ok {
 			return math.Min(x, y)
@@ -303,83 +302,83 @@ func PMin(a, b interface {}) interface {} {
 //  expected type directly rather than cast
 
 // Recv
-func (psim PSim) RecvInt(rank, source int) int {
+func (psim *PSim) RecvInt(rank, source int) int {
 	return ToInt(psim.Recv(rank, source))
 }
 
-func (psim PSim) RecvFloat64(rank, source int) float64 {
+func (psim *PSim) RecvFloat64(rank, source int) float64 {
 	return ToFloat64(psim.Recv(rank, source))
 }
 
-func (psim PSim) RecvFloat(rank, source int) float64 {
+func (psim *PSim) RecvFloat(rank, source int) float64 {
 	return ToFloat64(psim.Recv(rank, source))
 }
 
-func (psim PSim) RecvFloat32(rank, source int) float32 {
+func (psim *PSim) RecvFloat32(rank, source int) float32 {
 	return ToFloat32(psim.Recv(rank, source))
 }
 
-func (psim PSim) RecvIntArray(rank, source int) []int {
+func (psim *PSim) RecvIntArray(rank, source int) []int {
 	return ToIntArray(InterfaceToSlice(psim.Recv(rank, source)))
 }
 
-func (psim PSim) RecvFloat64Array(rank, source int) []float64 {
+func (psim *PSim) RecvFloat64Array(rank, source int) []float64 {
 	return ToFloat64Array(InterfaceToSlice(psim.Recv(rank, source)))
 }
 
-func (psim PSim) RecvFloatArray(rank, source int) []float64 {
+func (psim *PSim) RecvFloatArray(rank, source int) []float64 {
 	return ToFloatArray(InterfaceToSlice(psim.Recv(rank, source)))
 }
 
-func (psim PSim) RecvFloat32Array(rank, source int) []float32 {
+func (psim *PSim) RecvFloat32Array(rank, source int) []float32 {
 	return ToFloat32Array(InterfaceToSlice(psim.Recv(rank, source)))
 }
 
 // a2aBcast
-func (psim PSim) All2all_broadcastInt(rank int, data int) []int {
+func (psim *PSim) All2all_broadcastInt(rank int, data int) []int {
 	return ToIntArray(psim.All2all_broadcast(rank, data))
 }
 
-func (psim PSim) All2all_broadcastFloat(rank int, data float64) []float64 {
+func (psim *PSim) All2all_broadcastFloat(rank int, data float64) []float64 {
 	return ToFloat64Array(psim.All2all_broadcast(rank, data))
 }
 
 // scattera
-func (psim PSim) One2all_scatterInt(rank, source int, data []interface {}) []int {
+func (psim *PSim) One2all_scatterInt(rank, source int, data []interface{}) []int {
 	return ToIntArray(psim.One2all_scatter(rank, source, data))
 }
 
-func (psim PSim) One2all_scatterFloat(rank, source int, data []interface {}) []float64 {
+func (psim *PSim) One2all_scatterFloat(rank, source int, data []interface{}) []float64 {
 	return ToFloatArray(psim.One2all_scatter(rank, source, data))
 }
 
 // collect
-func (psim PSim) All2one_collectInt(rank, dest int, data int) []int {
+func (psim *PSim) All2one_collectInt(rank, dest int, data int) []int {
 	return ToIntArray(psim.All2one_collect(rank, dest, data))
 }
 
-func (psim PSim) All2one_collectFloat(rank, dest int, data float64) []float64 {
+func (psim *PSim) All2one_collectFloat(rank, dest int, data float64) []float64 {
 	return ToFloatArray(psim.All2one_collect(rank, dest, data))
 }
 
 // Message Passing functions
 
-func (psim PSim) Send(source, dest int, data interface {}) {
+func (psim *PSim) Send(source, dest int, data interface{}) {
 	// if i or j less than 0 or greater then nprocs error
 	// if i -> j communication unavailable, error
 	if source < 0 || source > psim.P-1 || dest < 0 || dest > psim.P-1 || !psim.Topology(source, dest) {
-		fmt.Printf("Send ERR:\nOut of range, i: %d; j: %d\n", source, dest);
+		fmt.Printf("Send ERR:\nOut of range, i: %d; j: %d\n", source, dest)
 	} else {
 		// send data
-		psim.Pipes[source][dest] <-data
+		psim.Pipes[source][dest] <- data
 	}
 }
 
-func (psim PSim) Recv(rank, source int) interface {} {
+func (psim *PSim) Recv(rank, source int) interface{} {
 	// if i or j less than 0 or greater then nprocs error
 	// if i -> j communication unavailable, error
 	if rank < 0 || rank > psim.P-1 || source < 0 || source > psim.P-1 || !psim.Topology(rank, source) {
-		fmt.Printf("Recv ERR:\nOut of range, i: %d; j: %d\n", rank, source);
+		fmt.Printf("Recv ERR:\nOut of range, i: %d; j: %d\n", rank, source)
 	} else {
 		// recv data
 		return <-psim.Pipes[source][rank]
@@ -387,7 +386,7 @@ func (psim PSim) Recv(rank, source int) interface {} {
 	return nil
 }
 
-func (psim PSim) One2all_broadcast(rank, source int, data interface {}) interface {} {
+func (psim *PSim) One2all_broadcast(rank, source int, data interface{}) interface{} {
 	if rank == source {
 		for i := 0; i < psim.P; i++ {
 			if i != source {
@@ -400,21 +399,21 @@ func (psim PSim) One2all_broadcast(rank, source int, data interface {}) interfac
 	}
 }
 
-func (psim PSim) All2all_broadcast(rank int, data interface {}) []interface {} {
+func (psim *PSim) All2all_broadcast(rank int, data interface{}) []interface{} {
 	vector := psim.All2one_collect(rank, 0, data)
 	v := psim.One2all_broadcast(rank, 0, vector)
-	switch t:= v.(type){
-	case []interface {}:
+	switch t := v.(type) {
+	case []interface{}:
 		return t
-	case interface {}:
-		return []interface {} {t}
+	case interface{}:
+		return []interface{}{t}
 	default:
 		// TODO error
 	}
 	return nil
 }
 
-func (psim PSim) One2all_scatter(rank, source int, data []interface {}) []interface {} {
+func (psim *PSim) One2all_scatter(rank, source int, data []interface{}) []interface{} {
 	if rank == source {
 		h, remainder := divmod(len(data), psim.P)
 
@@ -428,17 +427,17 @@ func (psim PSim) One2all_scatter(rank, source int, data []interface {}) []interf
 		return data[0:h]
 	} else {
 		v := psim.Recv(rank, source)
-		if vector, ok := v.([]interface {}); ok {
-			return vector	
+		if vector, ok := v.([]interface{}); ok {
+			return vector
 		} else {
 			return nil
 		}
 	}
 }
 
-func (psim PSim) All2one_collect(rank, dest int, data interface {}) []interface {} {
-	var result []interface {}
-	
+func (psim *PSim) All2one_collect(rank, dest int, data interface{}) []interface{} {
+	var result []interface{}
+
 	if rank == dest {
 		for i := 0; i < psim.P; i++ {
 			if i == rank {
@@ -450,17 +449,17 @@ func (psim PSim) All2one_collect(rank, dest int, data interface {}) []interface 
 	} else {
 		psim.Send(rank, dest, data)
 	}
-	
+
 	return result
 }
 
-func (psim PSim) All2one_reduce(
+func (psim *PSim) All2one_reduce(
 	rank, dest int,
-	data interface {},
-	op func(a, b interface {}) interface {}) interface {} {
+	data interface{},
+	op func(a, b interface{}) interface{}) interface{} {
 	if rank == dest {
 		result := data
-		for i := 1; i< psim.P; i++ {
+		for i := 1; i < psim.P; i++ {
 			if i != rank {
 				result = op(result, psim.Recv(rank, i))
 			}
@@ -472,12 +471,12 @@ func (psim PSim) All2one_reduce(
 	}
 }
 
-func (psim PSim) All2all_reduce(rank int, data interface {}, op func(a, b interface {}) interface {}) interface {} {
+func (psim *PSim) All2all_reduce(rank int, data interface{}, op func(a, b interface{}) interface{}) interface{} {
 	result := psim.All2one_reduce(rank, 0, data, op)
 	result = psim.One2all_broadcast(rank, 0, result)
 	return result
 }
 
-func (psim PSim) Barrier(rank int) {
+func (psim *PSim) Barrier(rank int) {
 	psim.All2all_broadcast(rank, 0)
 }

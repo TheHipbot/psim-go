@@ -1,18 +1,18 @@
 package psimgo
 
 import (
-	"testing"
 	"fmt"
 	"math/rand"
+	"testing"
 )
 
 func TestMessagePassing(t *testing.T) {
 	comm := PSim{
-		P: 5,
+		P:        5,
 		Topology: SWITCH,
 	}
 
-	runTest := func (rank int, comm PSim) {
+	runTest := func(rank int, comm *PSim) {
 		if rank == 0 {
 			fmt.Printf("start test\n")
 		}
@@ -42,11 +42,11 @@ func TestMessagePassing(t *testing.T) {
 
 		fmt.Printf("%d\n", b)
 
-		if f!=10 || f!=b {
+		if f != 10 || f != b {
 			t.Error(fmt.Sprintf("from process %d\n", rank))
 		}
 
-		if rank==0 {
+		if rank == 0 {
 			fmt.Printf("test passed\n")
 		}
 	}
@@ -57,17 +57,17 @@ func TestMessagePassing(t *testing.T) {
 func TestMergeSort(t *testing.T) {
 
 	comm := PSim{
-		P: 2,
+		P:        2,
 		Topology: SWITCH,
 	}
 
-	p_mergesort_test := func(rank int, comm PSim) {
-			data := make([]float64, 16, 16)
+	p_mergesort_test := func(rank int, comm *PSim) {
+		data := make([]float64, 16, 16)
 		if rank == 0 {
 			for i := range data {
 				data[i] = rand.Float64() * 10
 			}
-			mid := int(16/2)
+			mid := int(16 / 2)
 			comm.Send(rank, 1, data[mid+1:])
 			mergesort(data, 0, mid)
 			second := comm.RecvFloatArray(rank, 1)
@@ -86,7 +86,6 @@ func TestMergeSort(t *testing.T) {
 			}
 		} else {
 			data2 := comm.RecvFloatArray(rank, 0)
-
 
 			//		reflect.ValueOf(data2)
 			mergesort(data2, 0, len(data2)-1)
@@ -114,23 +113,23 @@ func merge(A []float64, p, q, r int) {
 	for {
 		if A[i] <= A[j] {
 			B = append(B, A[i])
-			i = i+1
+			i = i + 1
 		} else {
 			B = append(B, A[j])
-			j = j+1
+			j = j + 1
 		}
 
 		if i == q {
-			for j<=r {
+			for j <= r {
 				B = append(B, A[j])
-				j = j+1
+				j = j + 1
 			}
 			break
 		}
 		if j == r+1 {
-			for i<q {
+			for i < q {
 				B = append(B, A[i])
-				i = i+1
+				i = i + 1
 			}
 			break
 		}
@@ -150,6 +149,3 @@ func mergesort_test() {
 	mergesort(data, 0, 15)
 	fmt.Printf("%v\n", data)
 }
-
-
-
